@@ -46,20 +46,22 @@ void imprime_Mensagem(const char* vencedor, const char* perdedor) {
     printf("%s, YOU LOSE! ❌\n", perdedor);
 }
 
-void mensagem_Final(int pontos1, int pontos2) {
-    if (pontos1 > pontos2) {
+void mensagem_Vencedor(int codigoVencedor) {
+    if (codigoVencedor == 1) {
         imprime_Mensagem("JOGADOR 1", "JOGADOR 2");
-    } else if (pontos2 > pontos1) {
+    } else if (codigoVencedor == 2) {
         imprime_Mensagem("JOGADOR 2", "JOGADOR 1");
     } else {
         printf("EMPATE! 🏳️\n");
     }
+}
 
-    if (pontos1 != pontos2) {
+void mensagem_Final(int pontos1, int pontos2) {
+    if (pontos1 > pontos2 || pontos1 < pontos2) {
         printf("Jogador 1: %d pontos\n", pontos1);
         printf("Jogador 2: %d pontos\n", pontos2);
     } else {
-        printf("Ambos fizeram %d pontos\n", pontos1);
+        printf("Empate! Os 2 jogadores fizeram %d pontos\n", pontos1);
     }
 }
 
@@ -83,45 +85,38 @@ int main() {
 
     if (escolha == 1) {
         time(&inicio);
-
-        while (difftime(fim, inicio) < 10) { // Por exemplo, jogo de 10 segundos
-            limpa_tela();
-            printf("Rodada %d\n", contarodadas + 1);
+        while (difftime(fim, inicio) < 10) { // Por exemplo, jogo de 30 segundos
+            //limpa_tela();
             imprime_Escolhas("jogador 1");
             scanf("%d", &jogador1);
-            limpa_tela();
-            printf("Rodada %d\n", contarodadas + 1);
+            //limpa_tela();
             imprime_Escolhas("jogador 2");
             scanf("%d", &jogador2);
-            limpa_tela();
+            //limpa_tela();
 
-            verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2);
+            resultado = verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2);
+            mensagem_Vencedor(resultado);
             time(&fim);
 
             contarodadas++;
         }
-        limpa_tela();
+        //limpa_tela();
         mensagem_Final(pontos1, pontos2);
-        printf("%d rodadas jogadas\n", contarodadas);
+        printf("%d rodadas\n", contarodadas);
 
     } else if (escolha == 2) {
         limpa_tela();
         time(&inicio);
-
-        while (difftime(fim, inicio) < 10) {
+        while (difftime(fim, inicio) < 30) { // Jogo contra a máquina
             imprime_Escolhas("jogador 1");
             scanf("%d", &jogador1);
             limpa_tela();
             jogador2 = escolhe_maquina();
-
-            verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2);
+            resultado = verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2);
+            mensagem_Vencedor(resultado);
             time(&fim);
-
-            contarodadas++;
         }
         mensagem_Final(pontos1, pontos2);
-        printf("%d rodadas jogadas\n", contarodadas);
-
     } else {
         printf("Escolha uma opção válida!\n");
     }
