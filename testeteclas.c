@@ -2,9 +2,55 @@
 #include <stdlib.h>
 #include <time.h>   // Para usar time() e difftime()
 #include <unistd.h> // Para usar a função sleep()
+#include <sys/select.h>
 #include <termios.h>
 
 enum Escolha { PEDRA = 1, PAPEL, TESOURA, LAGARTO, SPOCK };
+
+char captura_tecla() {
+    struct termios oldt, newt;
+    char ch;
+    tcgetattr(STDIN_FILENO, &oldt); // Salva a configuração atual do terminal
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO); // Desabilita o modo canônico e o eco
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt); // Aplica as novas configurações
+
+    fd_set set;
+    struct timeval timeout;
+
+    FD_ZERO(&set);
+    FD_SET(STDIN_FILENO, &set);
+
+    timeout.tv_sec = 5; // Tempo limite de 5 segundos para pressionar uma tecla
+    timeout.tv_usec = 0;
+
+    int rv = select(1, &set, NULL, NULL, &timeout);
+    if(rv == 1) {
+        ch = getchar(); // Captura a tecla
+    } else {
+        ch = -1; // Nenhuma tecla pressionada
+    }
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt); // Restaura as configurações antigas
+    return ch;
+}
+// Traduz a tecla pressionada para uma escolha
+int traduz_escolha(char tecla) {
+    switch (tecla) {
+        case 'q': case 'u': return PEDRA;
+        case 'w': case 'i': return PAPEL;
+        case 'a': case 'j': return TESOURA;
+        case 's': case 'k': return LAGARTO;
+        case 'd': case 'l': return SPOCK;
+        default: return -1;
+    }
+}
+
+void limpar_buffer() {
+    int c;
+    // Lê e descarta caracteres até encontrar uma nova linha ou EOF
+    while ((c = getchar()) != '\n' && c != EOF);
+}
 
 void mensagem_Rodada(int escolha1, int escolha2, int rodada, int vencedor, int pontos1, int pontos2) {
     printf("RODADA %d:\n", rodada+1);
@@ -85,13 +131,22 @@ void imprime_Pergunta() {
     printf("2. Computador\n");
 }
 
-void imprime_Escolhas(const char* jogador) {
-    printf("Faça sua escolha, %s:\n", jogador);
-    printf("1. Pedra\n");
-    printf("2. Papel\n");
-    printf("3. Tesoura\n");
-    printf("4. Lagarto\n");
-    printf("5. Spock\n");
+void imprime_EscolhasJ1() {
+    printf("Faça sua escolha, jogador 1:\n");
+    printf("Q. Pedra\n");
+    printf("W. Papel\n");
+    printf("A. Tesoura\n");
+    printf("S. Lagarto\n");
+    printf("D. Spock\n");
+}
+
+void imprime_EscolhasJ2() {
+    printf("Faça sua escolha, jogador 2:\n");
+    printf("U. Pedra\n");
+    printf("I. Papel\n");
+    printf("J. Tesoura\n");
+    printf("K. Lagarto\n");
+    printf("L. Spock\n");
 }
 
 void mensagem_Final(int pontos1, int pontos2, int pontos_Empate) {
@@ -171,6 +226,7 @@ void escolha_Tempo(int *Tempo){
 
 int main() {
     int jogador1, jogador2, escolha, resultado, contarodadas = 0, tempo=0;
+    char teclaj1, teclaj2;
     int pontos1 = 0, pontos2 = 0, pontos_empate = 0;
     time_t inicio, fim;
 
@@ -182,38 +238,44 @@ int main() {
     escolha_Tempo(&tempo);
     limpa_tela();
     
+    limpar_buffer();
     if (escolha == 1) {
         time(&inicio);
-        desativar_echo();
-
         while (difftime(fim, inicio) < tempo) {
-
+            printf("-----------------------------------------------------\n");
             printf("Rodada %d\n", contarodadas + 1);
-            imprime_Escolhas("jogador 1");
-            scanf("%d", &jogador1);
+
+            imprime_EscolhasJ1();
+            teclaj1 = captura_tecla();
+            printf("Jogador 1 escolheu: %c\n", teclaj1); // Verificar o input
             printf("\n");
-            imprime_Escolhas("jogador 2");
-            scanf("%d", &jogador2);
+
+            imprime_EscolhasJ2();
+            teclaj2 = captura_tecla();
+            printf("Jogador 2 escolheu: %c\n", teclaj2); // Verificar o input
             printf("\n");
+
+            jogador1 = traduz_escolha(teclaj1);
+            jogador2 = traduz_escolha(teclaj2);
+
             verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, contarodadas);
             time(&fim);
 
             contarodadas++;
-            if (tempo - difftime(fim, inicio) > 0) {
-                printf("Tempo restante: %d segundos\n", (int)(tempo - difftime(fim, inicio)));
-                printf("\n");
-            }
         }
-        ativar_echo();
-
     } else if (escolha == 2) {
         limpa_tela();
         time(&inicio);
 
         while (difftime(fim, inicio) < 10) {
-            imprime_Escolhas("jogador 1");
-            scanf("%d", &jogador1);
+            printf("-----------------------------------------------------\n");
+            printf("Rodada %d\n", contarodadas + 1);
+
+            imprime_EscolhasJ1();
+            teclaj1 = captura_tecla();
+            jogador1 = traduz_escolha(teclaj1);
             printf("\n");
+
             jogador2 = escolhe_maquina();
 
             verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, contarodadas);
