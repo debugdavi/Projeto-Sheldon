@@ -1,10 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>   // Para usar time() e difftime()
-#include <unistd.h> // Para usar a função sleep()
-#include <termios.h>
+#include <time.h>
+#include <ctype.h>
+#include <unistd.h>         //Usado pra função sleep()
+#include <sys/select.h>     //Usado para criar a função captura_Tecla()
+#include <termios.h>        //Foi usado para configuração do terminal
 
 enum Escolha { PEDRA = 1, PAPEL, TESOURA, LAGARTO, SPOCK };
+
+char captura_Tecla() {
+    struct termios oldt, newt;
+    char ch;
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+
+    fd_set set;
+    struct timeval timeout;
+
+    FD_ZERO(&set);
+    FD_SET(STDIN_FILENO, &set);
+
+    timeout.tv_sec = 5;
+    timeout.tv_usec = 0;
+
+    int rv = select(1, &set, NULL, NULL, &timeout);
+
+    if(rv == 1) {
+        ch = getchar();
+    } else {
+        ch = -1;
+    }
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    return ch;
+}
+
+int traduz_Escolhaj1(char tecla) {
+    if(tecla != -1){
+        switch (tecla) {
+            case 'Q': case 'q': return PEDRA;
+            case 'W': case 'w': return PAPEL;
+            case 'A': case 'a': return TESOURA;
+            case 'S': case 's': return LAGARTO;
+            case 'D': case 'd': return SPOCK;
+            default: return -2;
+    }
+    }
+
+}
+int traduz_Escolhaj2(char tecla) {
+    if(tecla != -1) {
+        switch (tecla) {
+            case 'U': case 'u': return PEDRA;
+            case 'I': case 'i': return PAPEL;
+            case 'J': case 'j': return TESOURA;
+            case 'K': case 'k': return LAGARTO;
+            case 'L': case 'l': return SPOCK;
+            default: return -2;
+        }   
+    }
+}
+
+void limpa_Buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
 
 void mensagem_Rodada(int escolha1, int escolha2, int rodada, int vencedor, int pontos1, int pontos2) {
     printf("RODADA %d:\n", rodada+1);
@@ -50,28 +112,24 @@ void mensagem_Rodada(int escolha1, int escolha2, int rodada, int vencedor, int p
     printf("\n");
 }
 
-int verifica_vencedor(int jogador1, int jogador2, int* pontos1, int* pontos2, int* pontos3, int rodadas) {
+void verifica_vencedor(int jogador1, int jogador2, int* pontos1, int* pontos2, int* pontos3, int rodadas) {
     int vencedor;
     if (jogador1 == jogador2) {
         (*pontos3)++;
         vencedor = 0;
         mensagem_Rodada(jogador1, jogador2, rodadas, vencedor, *pontos1, *pontos2);
-        return 0; // Empate
-    }
-    if ((jogador1 == TESOURA && (jogador2 == PAPEL || jogador2 == LAGARTO)) ||
+    } else if ((jogador1 == TESOURA && (jogador2 == PAPEL || jogador2 == LAGARTO)) ||
         (jogador1 == PAPEL && (jogador2 == PEDRA || jogador2 == SPOCK)) ||
         (jogador1 == PEDRA && (jogador2 == TESOURA || jogador2 == LAGARTO)) ||
         (jogador1 == LAGARTO && (jogador2 == SPOCK || jogador2 == PAPEL)) ||
         (jogador1 == SPOCK && (jogador2 == TESOURA || jogador2 == PEDRA))) {
-        (*pontos1)++; // Jogador 1 vence, incrementa pontos
+        (*pontos1)++;
         vencedor = 1;
         mensagem_Rodada(jogador1, jogador2, rodadas, vencedor, *pontos1, *pontos2);
-        return 1;
     } else {
-        (*pontos2)++; // Jogador 2 vence, incrementa pontos
+        (*pontos2)++; 
         vencedor = 2;
         mensagem_Rodada(jogador1, jogador2, rodadas, vencedor, *pontos1, *pontos2);
-        return 2;
     }
 }
 
@@ -85,13 +143,22 @@ void imprime_Pergunta() {
     printf("2. Computador\n");
 }
 
-void imprime_Escolhas(const char* jogador) {
-    printf("Faça sua escolha, %s:\n", jogador);
-    printf("1. Pedra\n");
-    printf("2. Papel\n");
-    printf("3. Tesoura\n");
-    printf("4. Lagarto\n");
-    printf("5. Spock\n");
+void imprime_EscolhasJ1() {
+    printf("Faça sua escolha, jogador 1:\n");
+    printf("Q. Pedra\n");
+    printf("W. Papel\n");
+    printf("A. Tesoura\n");
+    printf("S. Lagarto\n");
+    printf("D. Spock\n");
+}
+
+void imprime_EscolhasJ2() {
+    printf("Faça sua escolha, jogador 2:\n");
+    printf("U. Pedra\n");
+    printf("I. Papel\n");
+    printf("J. Tesoura\n");
+    printf("K. Lagarto\n");
+    printf("L. Spock\n");
 }
 
 void mensagem_Final(int pontos1, int pontos2, int pontos_Empate) {
@@ -138,39 +205,58 @@ void limpa_tela() {
 #endif
 }
 
-void desativar_echo() {
-    struct termios term;
-    tcgetattr(STDIN_FILENO, &term);
-    term.c_lflag &= ~ECHO;
-    tcsetattr(STDIN_FILENO, TCSANOW, &term);
-}
-
-void ativar_echo() {
-    struct termios term;
-    tcgetattr(STDIN_FILENO, &term);
-    term.c_lflag |= ECHO;
-    tcsetattr(STDIN_FILENO, TCSANOW, &term);
-}
-
 void escolha_Tempo(int *Tempo){
     int TempoEscolhido=0;
     printf("Escolha o tempo da partida:\n");
     printf("1. 30s\n");
     printf("2. 45s\n");
     printf("3. 60s\n");
-    while (TempoEscolhido > 3 || TempoEscolhido < 1) {
-        scanf("%d", &TempoEscolhido);
-        switch (TempoEscolhido) {
-        case 1: *Tempo = 5; break; //MUDAR DEPOIS
-        case 2: *Tempo = 45; break;
-        case 3: *Tempo = 60; break;
-        default: printf("Escolha uma opção válida\n"); break;
+    while (1) {
+        if (scanf("%d", &TempoEscolhido) != 1) {
+            printf("Escolha uma opção válida (1, 2 ou 3).\n");
+            limpa_Buffer();
+        } else if (TempoEscolhido >= 1 && TempoEscolhido <= 3) {
+            switch (TempoEscolhido) {
+                case 1: *Tempo = 30; break;
+                case 2: *Tempo = 45; break;
+                case 3: *Tempo = 60; break;
+            }
+            break;
+        } else {
+            printf("Escolha uma opção válida (1, 2 ou 3).\n");
+        }
+    }
+}
+
+void pontua_Penalidade(int jogador1, int jogador2, int* pontos1, int* pontos2){
+    if (jogador1 == -1 && jogador2 == -1) {
+        printf("Os dois não digitaram uma tecla. Nenhum ganha ponto.\n");
+    } else if (jogador1 == -2 && jogador2 == -2) {
+        printf("Os dois apertaram teclas erradas. Nenhum ganha ponto.\n");
+    } else if (jogador1 < 0 && jogador2 < 0){
+        printf("Os dois cometeram penalidades. Nenhum ganha ponto.\n");
+    }
+    else {
+        if (jogador1 == -1) {
+            printf("PENALIDADE: Jogador 1 não digitou uma tecla. +1 para o adversário\n");
+            (*pontos2)++;
+        } else if (jogador1 == -2) {
+            printf("PENALIDADE: Jogador 1 apertou a tecla errada. +1 para o adversário\n");
+            (*pontos2)++;
+        }
+        if (jogador2 == -1) {
+            printf("PENALIDADE: Jogador 2 não digitou uma tecla. +1 para o adversário\n");
+            (*pontos1)++;
+        } else if (jogador2 == -2) {
+            printf("PENALIDADE: Jogador 2 apertou a tecla errada. +1 para o adversário\n");
+            (*pontos1)++;
         }
     }
 }
 
 int main() {
-    int jogador1, jogador2, escolha, resultado, contarodadas = 0, tempo=0;
+    int jogador1, jogador2, escolha, resultado, conta_rodadas = 0, tempo = 0;
+    char teclaj1, teclaj2;
     int pontos1 = 0, pontos2 = 0, pontos_empate = 0;
     time_t inicio, fim;
 
@@ -181,53 +267,67 @@ int main() {
     limpa_tela();
     escolha_Tempo(&tempo);
     limpa_tela();
-    
+
+    limpa_Buffer();
     if (escolha == 1) {
         time(&inicio);
-        desativar_echo();
 
         while (difftime(fim, inicio) < tempo) {
+            printf("-----------------------------------------------------\n");
+            printf("Rodada %d\n", conta_rodadas + 1);
 
-            printf("Rodada %d\n", contarodadas + 1);
-            imprime_Escolhas("jogador 1");
-            scanf("%d", &jogador1);
-            printf("\n");
-            imprime_Escolhas("jogador 2");
-            scanf("%d", &jogador2);
-            printf("\n");
-            verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, contarodadas);
-            time(&fim);
+            imprime_EscolhasJ1();
+            teclaj1 = captura_Tecla();
+            printf("\n ");
 
-            contarodadas++;
-            if (tempo - difftime(fim, inicio) > 0) {
-                printf("Tempo restante: %d segundos\n", (int)(tempo - difftime(fim, inicio)));
-                printf("\n");
+            imprime_EscolhasJ2();
+            teclaj2 = captura_Tecla();
+            printf("\n");
+
+            jogador1 = traduz_Escolhaj1(teclaj1);
+            jogador2 = traduz_Escolhaj2(teclaj2);
+
+            if(jogador1 > 0 && jogador2 > 0){
+                verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, conta_rodadas);
+            }else{
+                pontua_Penalidade(jogador1, jogador2, &pontos1, &pontos2);
             }
+            
+            time(&fim);
+            conta_rodadas++;
         }
-        ativar_echo();
-
     } else if (escolha == 2) {
-        limpa_tela();
         time(&inicio);
 
         while (difftime(fim, inicio) < 10) {
-            imprime_Escolhas("jogador 1");
-            scanf("%d", &jogador1);
+            printf("-----------------------------------------------------\n");
+            printf("Rodada %d\n", conta_rodadas + 1);
+
+            imprime_EscolhasJ1();
+            teclaj1 = captura_Tecla();
+            jogador1 = traduz_Escolhaj1(teclaj1);
             printf("\n");
+
             jogador2 = escolhe_maquina();
+            
+            if(jogador1 > 0 && jogador2 > 0){
+                verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, conta_rodadas);
+            }else{
+                pontua_Penalidade(jogador1, jogador2, &pontos1, &pontos2);
+            }
 
-            verifica_vencedor(jogador1, jogador2, &pontos1, &pontos2, &pontos_empate, contarodadas);
             time(&fim);
-
-            contarodadas++;
+            conta_rodadas++;
         }
 
     } else {
         printf("Escolha uma opção válida!\n");
     }
 
-    mensagem_Final(pontos1, pontos2, pontos_empate);
-    printf("%d rodadas jogadas\n", contarodadas);
+    if(conta_rodadas > 0){
+        mensagem_Final(pontos1, pontos2, pontos_empate);
+        printf("%d Rodadas Jogadas\n", conta_rodadas);
+    } 
 
     return 0;
 }
