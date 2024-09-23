@@ -210,13 +210,19 @@ void escolha_Tempo(int *Tempo){
     printf("1. 30s\n");
     printf("2. 45s\n");
     printf("3. 60s\n");
-    while (TempoEscolhido > 3 || TempoEscolhido < 1) {
-        scanf("%d", &TempoEscolhido);
-        switch (TempoEscolhido) {
-        case 1: *Tempo = 5; break; //MUDAR DEPOIS
-        case 2: *Tempo = 45; break;
-        case 3: *Tempo = 60; break;
-        default: printf("Escolha uma opção válida\n"); break;
+    while (1) {
+        if (scanf("%d", &TempoEscolhido) != 1) {
+            printf("Escolha uma opção válida (1, 2 ou 3).\n");
+            limpa_Buffer();
+        } else if (TempoEscolhido >= 1 && TempoEscolhido <= 3) {
+            switch (TempoEscolhido) {
+                case 1: *Tempo = 5; break;
+                case 2: *Tempo = 45; break;
+                case 3: *Tempo = 60; break;
+            }
+            break;
+        } else {
+            printf("Escolha uma opção válida (1, 2 ou 3).\n");
         }
     }
 }
@@ -245,6 +251,13 @@ void pontua_Penalidade(int jogador1, int jogador2, int* pontos1, int* pontos2){
             (*pontos1)++;
         }
     }
+}
+
+void verifica_Tecla(char tecla, int* jogador){
+    if(tecla != -1)
+        *jogador = traduz_Escolhaj1(tecla);
+    else
+        *jogador = -1;
 }
 
 int main() {
@@ -278,9 +291,8 @@ int main() {
             printf("Jogador 2 escolheu: %c\n", teclaj2); // Verificar o input
             printf("\n");
 
-            jogador1 = traduz_Escolhaj1(teclaj1);
-            jogador2 = traduz_Escolhaj2(teclaj2);
-
+            verifica_Tecla(teclaj1, &jogador1);
+            verifica_Tecla(teclaj2, &jogador2);
 
             printf("Jogador 1 retorno %d\n", jogador1); // Verificar o input
             printf("Jogador 2 retorno %d\n", jogador2); // Verificar o input
@@ -306,8 +318,8 @@ int main() {
 
             imprime_EscolhasJ1();
             teclaj1 = captura_Tecla();
-            jogador1 = traduz_Escolhaj1(teclaj1);
-            printf("\n");
+
+            verifica_Tecla(teclaj1, &jogador1);
 
             jogador2 = escolhe_maquina();
 
@@ -327,6 +339,7 @@ int main() {
         printf("Escolha uma opção válida!\n");
     }
 
+    printf("\n");
     mensagem_Final(pontos1, pontos2, pontos_empate);
     printf("%d rodadas jogadas\n", contarodadas);
 
